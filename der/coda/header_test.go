@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/gitchander/asn1/der/random"
+	"github.com/cpusoft/asn1/der/random"
 )
 
 func TestTagSamples(t *testing.T) {

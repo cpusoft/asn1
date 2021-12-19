@@ -1,4 +1,4 @@
-module github.com/gitchander/asn1
+module github.com/cpusoft/asn1
 
 go 1.16
 

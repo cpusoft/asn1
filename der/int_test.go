@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/gitchander/asn1/der/random"
+	"github.com/cpusoft/asn1/der/random"
 )
 
 func randInt64(r *rand.Rand) int64 {

@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/gitchander/asn1/der/coda"
+	"github.com/cpusoft/asn1/der/coda"
 )
 
 var (

@@ -7,16 +7,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gitchander/asn1/der"
+	"github.com/cpusoft/asn1/der"
 )
 
 func main() {
 
-	//fn := derHex
+	fn := derHex
 	//fn := testUint64
 	//fn := testIntDER
 	//fn := testIntJSON
-	fn := testPersone
+	//fn := testPersone
 	//fn := testFloat
 
 	if err := fn(); err != nil {

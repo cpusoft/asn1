@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/gitchander/asn1/der/random"
+	"github.com/cpusoft/asn1/der/random"
 	"github.com/toelsiba/date"
 )
 

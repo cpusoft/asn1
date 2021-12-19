@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gitchander/asn1/der/coda"
+	"github.com/cpusoft/asn1/der/coda"
 )
 
 // http://luca.ntop.org/Teaching/Appunti/asn1.html

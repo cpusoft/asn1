@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/gitchander/asn1/der/params_design/v2"
-	"github.com/gitchander/asn1/der/params_design/v3"
+	v2 "github.com/cpusoft/asn1/der/params_design/v2"
+	v3 "github.com/cpusoft/asn1/der/params_design/v3"
 )
 
 func main() {

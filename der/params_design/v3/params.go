@@ -3,7 +3,7 @@ package v3
 import (
 	"fmt"
 
-	opt "github.com/gitchander/asn1/der/params_design/optional"
+	opt "github.com/cpusoft/asn1/der/params_design/optional"
 )
 
 type Node struct{}

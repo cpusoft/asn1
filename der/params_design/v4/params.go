@@ -1,7 +1,7 @@
 package v4
 
 import (
-	opt "github.com/gitchander/asn1/der/params_design/optional"
+	opt "github.com/cpusoft/asn1/der/params_design/optional"
 )
 
 type Params struct {
