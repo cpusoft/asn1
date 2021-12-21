@@ -1,6 +1,7 @@
 package der
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -32,8 +33,9 @@ type Node struct {
 	tag         int
 	constructed bool // isCompound
 
-	data  []byte  // Primitive:   (isCompound = false)
-	nodes []*Node // Constructed: (isCompound = true)
+	data  []byte      // Primitive:   (isCompound = false)
+	value interface{} // Primitive:  int/bool/string/time... (isCompound = false)
+	nodes []*Node     // Constructed: (isCompound = true)
 }
 
 func NewNode(class int, tag int) *Node {
@@ -154,17 +156,54 @@ func encodeValue(n *Node) ([]byte, error) {
 func decodeValue(data []byte, n *Node) error {
 
 	if !n.constructed {
+		var err error
 		n.data = cloneBytes(data)
+		switch n.tag {
+		case TAG_BOOLEAN:
+			n.value, err = n.GetBool()
+		case TAG_INTEGER:
+			n.value, err = n.GetInt()
+		case TAG_BIT_STRING:
+			n.value, err = n.GetString()
+		case TAG_OCTET_STRING:
+			n.value, err = n.GetString()
+		case TAG_NULL:
+			n.value = nil
+		case TAG_OID:
+			n.value, err = n.GetOid()
+		case TAG_REAL:
+			n.value, err = n.GetReal()
+		case TAG_ENUMERATED:
+			n.value, err = n.GetEnumerated()
+		case TAG_UTF8_STRING:
+			n.value, err = n.GetString()
+		case TAG_TIME:
+			n.value, err = n.GetUTCTime()
+		case TAG_IA5_STRING:
+			n.value, err = n.GetString()
+		case TAG_UTC_TIME:
+			n.value, err = n.GetUTCTime()
+		case TAG_GENERALIZED_TIME:
+			n.value, err = n.GetGeneralizedTime()
+		case TAG_BMP_STRING:
+			n.value, err = n.GetString()
+		default:
+			err = errors.New("tag is not supported")
+		}
+		if err != nil {
+			return err
+		}
+		return nil
+	} else {
+
+		ns, err := decodeNodes(data)
+		if err != nil {
+			return err
+		}
+		n.nodes = ns
+
 		return nil
 	}
-
-	ns, err := decodeNodes(data)
-	if err != nil {
-		return err
-	}
-	n.nodes = ns
-
-	return nil
 }
 
 //----------------------------------------------------------------------------
@@ -260,4 +299,57 @@ func (n *Node) GetUTCTime() (time.Time, error) {
 		return time.Time{}, ErrNodeIsConstructed
 	}
 	return decodeUTCTime(n.data)
+}
+
+func (n *Node) GetOid() (string, error) {
+	if n.constructed {
+		return "", ErrNodeIsConstructed
+	}
+	oids := make([]uint32, len(n.data)+2)
+	//the first byte using: first_arc* 40+second_arc
+	//the later , when highest bit is 1, will add to next to calc
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/bb540809(v=vs.85).aspx
+	f := uint32(n.data[0])
+	if f < 80 {
+		oids[0] = f / 40
+		oids[1] = f % 40
+	} else {
+		oids[0] = 2
+		oids[1] = f - 80
+	}
+	var tmp uint32
+	for i := 2; i <= len(n.data); i++ {
+		f = uint32(n.data[i-1])
+		//	fmt.Printf("f:0x%x\r\n", f)
+		if f >= 0x80 {
+			//		fmt.Printf("tmp<<8:0x%x +   (f&0x7f)0x%x\r\n", tmp<<8, (f & 0x7f))
+			tmp = tmp<<7 + (f & 0x7f)
+			//		fmt.Printf("tmp:0x%x\r\n", tmp)
+		} else {
+			oids[i] = tmp<<7 + (f & 0x7f)
+			//		fmt.Printf("oids[i]:0x%x\r\n", oids[i])
+			tmp = 0
+		}
+	}
+	var buffer bytes.Buffer
+	for i := 0; i < len(oids); i++ {
+		if oids[i] == 0 {
+			continue
+		}
+		buffer.WriteString(fmt.Sprint(oids[i]) + ".")
+	}
+	return buffer.String()[0 : len(buffer.String())-1], nil
+}
+
+func (n *Node) GetReal() (float64, error) {
+	//https://github.com/guidoreina/asn1/blob/58d422657c0378218587c89647b771348e2f7d07/asn1/ber/common.cpp
+	return 0, errors.New("not supported")
+}
+
+func (n *Node) GetEnumerated() (int64, error) {
+	return n.GetInt()
+}
+
+func (n *Node) GetGeneralizedTime() (time.Time, error) {
+	return n.GetUTCTime()
 }
