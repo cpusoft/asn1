@@ -1,5 +1,10 @@
 package der
 
+import (
+	"fmt"
+	"strings"
+)
+
 // import (
 // 	"io"
 // )
@@ -69,4 +74,11 @@ func cloneBytes(a []byte) []byte {
 	b := make([]byte, len(a))
 	copy(b, a)
 	return b
+}
+
+func printBytes(data []byte) (ret string) {
+	for _, b := range data {
+		ret += fmt.Sprintf("%02x ", b)
+	}
+	return strings.TrimSpace(ret)
 }

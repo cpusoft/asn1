@@ -2,17 +2,48 @@ package der
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
+	"strings"
 )
 
 func ConvertToString(n *Node) (string, error) {
 	var buf bytes.Buffer
-	err := nodeToString(n, &buf, 0)
+	//err := nodeToString(n, &buf, 0)
+	err := nodeToJson(n, &buf)
 	if err != nil {
 		return "", err
 	}
-	return buf.String(), nil
+	str := strings.Replace(buf.String(), "},]", "}]", -1)
+	return str, nil
+}
+func nodeToJson(n *Node, buf *bytes.Buffer) (err error) {
+
+	if !n.constructed {
+
+		jsonKey, jsonValue, err := n.toJsonKeyValue()
+		if err != nil {
+			return err
+		}
+		fmt.Println(jsonKey, jsonValue)
+		//s = hex.EncodeToString(n.data)
+		if _, err = buf.WriteString(`{"` + jsonKey + `":"` + jsonValue + `"},`); err != nil {
+			return err
+		}
+
+	} else {
+
+		buf.WriteString("[")
+
+		for _, child := range n.nodes {
+			if err = nodeToJson(child, buf); err != nil {
+				return err
+			}
+		}
+
+		buf.WriteString("]")
+	}
+
+	return nil
 }
 
 func nodeToString(n *Node, buf *bytes.Buffer, indent int) error {
@@ -37,7 +68,11 @@ func nodeToString(n *Node, buf *bytes.Buffer, indent int) error {
 
 		buf.WriteByte(' ')
 
-		s = hex.EncodeToString(n.data)
+		s, err = valueToString(n.tag, n.value)
+		if err != nil {
+			return err
+		}
+		//s = hex.EncodeToString(n.data)
 		if _, err = buf.WriteString(s); err != nil {
 			return err
 		}

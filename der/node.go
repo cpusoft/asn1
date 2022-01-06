@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
+	"strconv"
 	"time"
 	"unicode/utf8"
 
@@ -59,6 +61,10 @@ func (n *Node) GetTag() int {
 	return n.tag
 }
 
+func (n *Node) GetClass() int {
+	return n.class
+}
+
 func (n *Node) getHeader() coda.Header {
 	return coda.Header{
 		Class:      n.class,
@@ -92,6 +98,186 @@ func (n *Node) checkHeader(h coda.Header) error {
 	return nil
 }
 
+func (n *Node) toJsonKeyValue() (jsonKey, jsonValue string, err error) {
+
+	jsonKey = tagName(n.tag)
+	value := n.value
+	switch n.tag {
+	case TAG_BOOLEAN:
+		if b, ok := value.(bool); ok {
+			jsonValue = strconv.FormatBool(b)
+		} else {
+			err = errors.New("data is not bool")
+		}
+
+	case TAG_ENUMERATED:
+		fallthrough
+	case TAG_INTEGER:
+		// some interger is too big, so use string
+		if s, p := value.(big.Int); p {
+			jsonValue = s.Text(16)
+		} else {
+			err = errors.New("data is not int")
+		}
+	case TAG_REAL:
+		if f, p := value.(float32); p {
+			jsonValue = strconv.FormatFloat(float64(f), 'f', -1, 32)
+		} else {
+			err = errors.New("data is not real")
+		}
+
+		if f, p := value.(float64); p {
+			jsonValue = strconv.FormatFloat(f, 'f', -1, 32)
+		} else {
+			err = errors.New("data is not real")
+		}
+
+	case TAG_BIT_STRING:
+		fallthrough
+	case TAG_OCTET_STRING:
+		if f, p := value.([]byte); p {
+			jsonValue = printBytes(f)
+		} else {
+			err = errors.New("data is not bytes")
+		}
+	case TAG_BMP_STRING:
+		fallthrough
+	case TAG_OID:
+		fallthrough
+	case TAG_UTF8_STRING:
+		fallthrough
+	case TAG_NUMBERIC_STRING:
+		fallthrough
+	case TAG_PRINTABLE_STRING:
+		fallthrough
+	case TAG_T61_STRING:
+		fallthrough
+	case TAG_VIDEOTEX_STRING:
+		fallthrough
+	case TAG_IA5_STRING:
+		if s, ok := value.(string); ok {
+			jsonValue = s
+		} else {
+			err = errors.New("data is not string")
+		}
+
+	case TAG_TIME:
+		fallthrough
+	case TAG_UTC_TIME:
+		fallthrough
+	case TAG_GENERALIZED_TIME:
+		if t, ok := value.(time.Time); ok {
+			jsonValue = t.Local().Format("2006-01-02 15:04:05 MST")
+		} else {
+			err = errors.New("data is not time")
+		}
+	case TAG_END_OF_CONTENT:
+		jsonValue = ""
+	case TAG_NULL:
+		jsonValue = ""
+	default:
+		err = errors.New("tag is not supported")
+	}
+	if err != nil {
+		return "", "", err
+	}
+	//fmt.Println("k:", k, "   v:", v)
+	return jsonKey, jsonValue, nil
+}
+
+func valueToString(tag int, value interface{}) (string, error) {
+	var k, v string
+	var err error
+	switch tag {
+	case TAG_BOOLEAN:
+		k = "bool"
+		if b, ok := value.(bool); ok {
+			v = strconv.FormatBool(b)
+		} else {
+			err = errors.New("data is not bool")
+		}
+
+	case TAG_ENUMERATED:
+		fallthrough
+	case TAG_INTEGER:
+		// some interger is too big, so use string
+		k = "int"
+		if s, p := value.(big.Int); p {
+			v = s.Text(16)
+		} else {
+			err = errors.New("data is not int")
+		}
+	case TAG_REAL:
+		k = "float"
+		if f, p := value.(float32); p {
+			v = strconv.FormatFloat(float64(f), 'f', -1, 32)
+		} else {
+			err = errors.New("data is not real")
+		}
+
+		if f, p := value.(float64); p {
+			v = strconv.FormatFloat(f, 'f', -1, 32)
+		} else {
+			err = errors.New("data is not real")
+		}
+
+	case TAG_BIT_STRING:
+		fallthrough
+	case TAG_OCTET_STRING:
+		k = "bytes"
+		if f, p := value.([]byte); p {
+			v = printBytes(f)
+		} else {
+			err = errors.New("data is not bytes")
+		}
+	case TAG_BMP_STRING:
+		fallthrough
+	case TAG_OID:
+		fallthrough
+	case TAG_UTF8_STRING:
+		fallthrough
+	case TAG_NUMBERIC_STRING:
+		fallthrough
+	case TAG_PRINTABLE_STRING:
+		fallthrough
+	case TAG_T61_STRING:
+		fallthrough
+	case TAG_VIDEOTEX_STRING:
+		fallthrough
+	case TAG_IA5_STRING:
+		k = "string"
+		if s, ok := value.(string); ok {
+			v = s
+		} else {
+			err = errors.New("data is not string")
+		}
+
+	case TAG_TIME:
+		fallthrough
+	case TAG_UTC_TIME:
+		fallthrough
+	case TAG_GENERALIZED_TIME:
+		k = "time"
+		if t, ok := value.(time.Time); ok {
+			v = t.Local().Format("2006-01-02 15:04:05 MST")
+		} else {
+			err = errors.New("data is not time")
+		}
+	case TAG_END_OF_CONTENT:
+		k = "end"
+		v = ""
+	case TAG_NULL:
+		k = "nil"
+		v = ""
+	default:
+		err = errors.New("tag is not supported")
+	}
+	if err != nil {
+		return "", err
+	}
+	//fmt.Println("k:", k, "   v:", v)
+	return "{" + k + ":" + v + "}", nil
+}
 func EncodeNode(data []byte, n *Node) (rest []byte, err error) {
 
 	header := n.getHeader()
@@ -120,29 +306,33 @@ func DecodeNode(data []byte, n *Node) (rest []byte, err error) {
 	var header coda.Header
 	data, err = coda.DecodeHeader(data, &header)
 	if err != nil {
+		fmt.Println("DecodeNode(): DecodeHeader fail:", data, err)
 		return nil, err
 	}
 	err = n.setHeader(header)
 	if err != nil {
+		fmt.Println("DecodeNode(): setHeader fail:", err)
 		return nil, err
 	}
 
 	var length int
 	data, err = coda.DecodeLength(data, &length)
 	if err != nil {
+		fmt.Println("DecodeNode(): DecodeLength fail:", err)
 		return nil, err
 	}
 	if len(data) < length {
+		fmt.Println("DecodeNode():len(data) < length fail:")
 		return nil, errors.New("insufficient data length")
 	}
 
 	err = decodeValue(data[:length], n)
 	if err != nil {
+		fmt.Println("DecodeNode(): decodeValue fail:", err)
 		return nil, err
 	}
 
 	rest = data[length:]
-
 	return rest, nil
 }
 
@@ -159,38 +349,83 @@ func decodeValue(data []byte, n *Node) error {
 		var err error
 		n.data = cloneBytes(data)
 		switch n.tag {
+		case TAG_END_OF_CONTENT:
+			n.value = nil
+			fmt.Println("decodeValue(): TAG_END_OF_CONTENT ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_BOOLEAN:
 			n.value, err = n.GetBool()
+			fmt.Println("decodeValue(): TAG_BOOLEAN ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_INTEGER:
-			n.value, err = n.GetInt()
+
+			/*
+				n.value, err = n.GetInt()
+				var ret uint64
+				for _, i := range data {
+					ret = ret * 256
+					ret = ret + uint64(i)
+				}
+				n.value = ret
+			*/
+			// bigint
+
+			b := new(big.Int).SetBytes(data)
+			fmt.Println("big.Int", b)
+			n.value = *b
+			fmt.Println("decodeValue(): TAG_INTEGER ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+
 		case TAG_BIT_STRING:
-			n.value, err = n.GetString()
+			n.value = n.data
+			fmt.Println("decodeValue(): TAG_BIT_STRING ", "  tag:", n.tag, "   len(data):", len(n.data))
 		case TAG_OCTET_STRING:
-			n.value, err = n.GetString()
+			n.value = n.data
+			fmt.Println("decodeValue(): TAG_OCTET_STRING ", "  tag:", n.tag, "   len(data):", len(n.data))
 		case TAG_NULL:
 			n.value = nil
+			fmt.Println("decodeValue(): TAG_NULL ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_OID:
 			n.value, err = n.GetOid()
+			fmt.Println("decodeValue(): TAG_OID ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_REAL:
 			n.value, err = n.GetReal()
+			fmt.Println("decodeValue(): TAG_REAL ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_ENUMERATED:
 			n.value, err = n.GetEnumerated()
+			fmt.Println("decodeValue(): TAG_ENUMERATED ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_UTF8_STRING:
 			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_UTF8_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_TIME:
 			n.value, err = n.GetUTCTime()
+			fmt.Println("decodeValue(): TAG_TIME ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+		case TAG_NUMBERIC_STRING:
+			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_NUMBERIC_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+		case TAG_PRINTABLE_STRING:
+			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_PRINTABLE_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+		case TAG_T61_STRING:
+			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_T61_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+		case TAG_VIDEOTEX_STRING:
+			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_VIDEOTEX_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_IA5_STRING:
 			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_IA5_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_UTC_TIME:
 			n.value, err = n.GetUTCTime()
+			fmt.Println("decodeValue(): TAG_UTC_TIME ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_GENERALIZED_TIME:
 			n.value, err = n.GetGeneralizedTime()
+			fmt.Println("decodeValue(): TAG_GENERALIZED_TIME ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		case TAG_BMP_STRING:
 			n.value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_BMP_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
 		default:
 			err = errors.New("tag is not supported")
 		}
 		if err != nil {
+			fmt.Println("decodeValue(): fail, tag:", n.tag, "  data:", printBytes(n.data), err)
 			return err
 		}
 		return nil

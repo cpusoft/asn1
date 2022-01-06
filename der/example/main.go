@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/cpusoft/asn1/der"
+	"github.com/cpusoft/goutil/fileutil"
 )
 
 func main() {
-
+	//fn := derFile
 	fn := derHex
 	//fn := testUint64
 	//fn := testIntDER
@@ -23,12 +25,36 @@ func main() {
 		fmt.Println(err)
 	}
 }
+func derFile() error {
+	//file := `apnic-rpki-root-iana-origin.cer`
+	file := os.Args[1]
+	data1, err := fileutil.ReadFileToBytes(file)
+	fmt.Println("file:", file, "  len(data1):", len(data1), err)
+	n := new(der.Node)
+
+	_, err = der.DecodeNode(data1, n)
+	if err != nil {
+		fmt.Println("derFile():  DecodeNode fail:", err)
+		return err
+	}
+
+	s, err := der.ConvertToString(n)
+	if err != nil {
+		fmt.Println("derFile():  ConvertToString fail:", err)
+		return err
+	}
+
+	fmt.Println(s)
+	return nil
+}
 
 func derHex() error {
 
-	const hexDump = `30-2E-A0-03-02-01-01-A1 03-02-01-01-A2-03-02-01
+	hexDump := `30-2E-A0-03-02-01-01-A1 03-02-01-01-A2-03-02-01
 01-A3-08-0C-06-31-32-33 34-35-36-A4-13-17-11-31
 35-31-32-31-37-31-37-34 38-34-34-2B-30-33-30-30`
+
+	hexDump = `30 81 9c 30 14 a1 12 30 10 30 0e 04 01 02 30 09 03 07 00 20 01 06 7c 20 8c 30 0b 06 09 60 86 48 01 65 03 04 02 01 30 77 30 34 16 10 62 34 32 5f 69 70 76 36 5f 6c 6f 61 2e 70 6e 67 04 20 95 16 dd 64 be 7c 17 25 b9 fc a1 17 12 0e 58 e8 d8 42 a5 20 68 73 39 9b 3d df fc 91 c4 b6 ac f0 30 3f 16 1b 62 34 32 5f 73 65 72 76 69 63 65 5f 64 65 66 69 6e 69 74 69 6f 6e 2e 6a 73 6f 6e 04 20 0a e1 39 47 22 00 5c d9 2f 4c 6a a0 24 d5 d6 b3 e2 e6 7d 62 9f 11 72 0d 94 78 a6 33 a1 17 a1 c7`
 
 	s := onlyHex(hexDump)
 
@@ -50,6 +76,36 @@ func derHex() error {
 	}
 
 	fmt.Println(s)
+	/*
+
+	   UN(16): {
+	           UN(16): {
+	                   CS(1): {
+	                           UN(16): {
+	                                   UN(16): {
+	                                           UN(4): {bytes:02 }
+	                                           UN(16): {
+	                                                   UN(3): {bytes:00 20 01 06 7c 20 8c }
+	                                           }
+	                                   }
+	                           }
+	                   }
+	           }
+	           UN(16): {
+	                   UN(6): {string:2.16.840.1.101.3.4.2.1}
+	           }
+	           UN(16): {
+	                   UN(16): {
+	                           UN(22): {string:b42_ipv6_loa.png}
+	                           UN(4): {bytes:95 16 dd 64 be 7c 17 25 b9 fc a1 17 12 0e 58 e8 d8 42 a5 20 68 73 39 9b 3d df fc 91 c4 b6 ac f0 }
+	                   }
+	                   UN(16): {
+	                           UN(22): {string:b42_service_definition.json}
+	                           UN(4): {bytes:0a e1 39 47 22 00 5c d9 2f 4c 6a a0 24 d5 d6 b3 e2 e6 7d 62 9f 11 72 0d 94 78 a6 33 a1 17 a1 c7 }
+	                   }
+	           }
+	   }
+	*/
 
 	data2, err := der.EncodeNode(nil, n)
 	if err != nil {
@@ -277,4 +333,10 @@ func testFloat() error {
 	fmt.Printf("%X\n", data)
 
 	return nil
+}
+func printBytes(data []byte) (ret string) {
+	for _, b := range data {
+		ret += fmt.Sprintf("%02x ", b)
+	}
+	return ret
 }
