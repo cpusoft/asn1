@@ -49,13 +49,13 @@ func childSerialize(n *Node, s Serializer, tag int) error {
 		return err
 	}
 	if child != nil {
-		n.nodes = append(n.nodes, child)
+		n.Nodes = append(n.Nodes, child)
 	}
 	return nil
 }
 
 func childDeserialize(n *Node, d Deserializer, tag int) error {
-	child := NodeByTag(n.nodes, tag)
+	child := NodeByTag(n.Nodes, tag)
 	// child can be nil for an optional value
 	return d.DeserializeDER(child, Tag(tag))
 }

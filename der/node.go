@@ -35,11 +35,32 @@ type Node struct {
 	tag         int
 	constructed bool // isCompound
 
-	data  []byte      // Primitive:   (isCompound = false)
-	value interface{} // Primitive:  int/bool/string/time... (isCompound = false)
-	nodes []*Node     // Constructed: (isCompound = true)
+	Data  []byte      `json:"-"`               // Primitive:   (isCompound = false)
+	Value interface{} `json:"value,omitempty"` // Primitive:  int/bool/string/time... (isCompound = false)
+	Nodes []*Node     `json:"nodes,omitempty"` // Constructed: (isCompound = true)
 }
 
+/*
+func (n *Node) MarshalJSON() ([]byte, error) {
+	if !n.constructed {
+		jsonKey, jsonValue, err := n.toJsonKeyValue()
+		if err != nil {
+			fmt.Println("MarshalJSON fail:", err)
+			return nil, err
+		}
+		ret := `{"` + jsonKey + `":"` + jsonValue + `"},`
+		return []byte(ret), nil
+	} else {
+		for i, child := range n.Nodes {
+			if b, err := child.MarshalJSON(); err != nil {
+				fmt.Println("MarshalJSON child fail:", i, err)
+				return nil, err
+			}
+		}
+	}
+	return []byte(strconv.FormatFloat(float64(f), 'f', -1, 64)), nil
+}
+*/
 func NewNode(class int, tag int) *Node {
 	return &Node{
 		class: class,
@@ -101,7 +122,7 @@ func (n *Node) checkHeader(h coda.Header) error {
 func (n *Node) toJsonKeyValue() (jsonKey, jsonValue string, err error) {
 
 	jsonKey = tagName(n.tag)
-	value := n.value
+	value := n.Value
 	switch n.tag {
 	case TAG_BOOLEAN:
 		if b, ok := value.(bool); ok {
@@ -338,94 +359,94 @@ func DecodeNode(data []byte, n *Node) (rest []byte, err error) {
 
 func encodeValue(n *Node) ([]byte, error) {
 	if !n.constructed {
-		return cloneBytes(n.data), nil
+		return cloneBytes(n.Data), nil
 	}
-	return encodeNodes(n.nodes)
+	return encodeNodes(n.Nodes)
 }
 
 func decodeValue(data []byte, n *Node) error {
 
 	if !n.constructed {
 		var err error
-		n.data = cloneBytes(data)
+		n.Data = cloneBytes(data)
 		switch n.tag {
 		case TAG_END_OF_CONTENT:
-			n.value = nil
-			fmt.Println("decodeValue(): TAG_END_OF_CONTENT ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value = nil
+			fmt.Println("decodeValue(): TAG_END_OF_CONTENT ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_BOOLEAN:
-			n.value, err = n.GetBool()
-			fmt.Println("decodeValue(): TAG_BOOLEAN ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetBool()
+			fmt.Println("decodeValue(): TAG_BOOLEAN ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_INTEGER:
 
 			/*
-				n.value, err = n.GetInt()
+				n.Value, err = n.GetInt()
 				var ret uint64
 				for _, i := range data {
 					ret = ret * 256
 					ret = ret + uint64(i)
 				}
-				n.value = ret
+				n.Value = ret
 			*/
 			// bigint
 
 			b := new(big.Int).SetBytes(data)
 			fmt.Println("big.Int", b)
-			n.value = *b
-			fmt.Println("decodeValue(): TAG_INTEGER ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value = *b
+			fmt.Println("decodeValue(): TAG_INTEGER ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 
 		case TAG_BIT_STRING:
-			n.value = n.data
-			fmt.Println("decodeValue(): TAG_BIT_STRING ", "  tag:", n.tag, "   len(data):", len(n.data))
+			n.Value = n.Data
+			fmt.Println("decodeValue(): TAG_BIT_STRING ", "  tag:", n.tag, "   len(data):", len(n.Data))
 		case TAG_OCTET_STRING:
-			n.value = n.data
-			fmt.Println("decodeValue(): TAG_OCTET_STRING ", "  tag:", n.tag, "   len(data):", len(n.data))
+			n.Value = n.Data
+			fmt.Println("decodeValue(): TAG_OCTET_STRING ", "  tag:", n.tag, "   len(data):", len(n.Data))
 		case TAG_NULL:
-			n.value = nil
-			fmt.Println("decodeValue(): TAG_NULL ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value = nil
+			fmt.Println("decodeValue(): TAG_NULL ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_OID:
-			n.value, err = n.GetOid()
-			fmt.Println("decodeValue(): TAG_OID ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetOid()
+			fmt.Println("decodeValue(): TAG_OID ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_REAL:
-			n.value, err = n.GetReal()
-			fmt.Println("decodeValue(): TAG_REAL ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetReal()
+			fmt.Println("decodeValue(): TAG_REAL ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_ENUMERATED:
-			n.value, err = n.GetEnumerated()
-			fmt.Println("decodeValue(): TAG_ENUMERATED ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetEnumerated()
+			fmt.Println("decodeValue(): TAG_ENUMERATED ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_UTF8_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_UTF8_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_UTF8_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_TIME:
-			n.value, err = n.GetUTCTime()
-			fmt.Println("decodeValue(): TAG_TIME ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetUTCTime()
+			fmt.Println("decodeValue(): TAG_TIME ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_NUMBERIC_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_NUMBERIC_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_NUMBERIC_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_PRINTABLE_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_PRINTABLE_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_PRINTABLE_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_T61_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_T61_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_T61_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_VIDEOTEX_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_VIDEOTEX_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_VIDEOTEX_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_IA5_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_IA5_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_IA5_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_UTC_TIME:
-			n.value, err = n.GetUTCTime()
-			fmt.Println("decodeValue(): TAG_UTC_TIME ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetUTCTime()
+			fmt.Println("decodeValue(): TAG_UTC_TIME ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_GENERALIZED_TIME:
-			n.value, err = n.GetGeneralizedTime()
-			fmt.Println("decodeValue(): TAG_GENERALIZED_TIME ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetGeneralizedTime()
+			fmt.Println("decodeValue(): TAG_GENERALIZED_TIME ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		case TAG_BMP_STRING:
-			n.value, err = n.GetString()
-			fmt.Println("decodeValue(): TAG_BMP_STRING ", "  tag:", n.tag, "   data:", printBytes(n.data), n.value)
+			n.Value, err = n.GetString()
+			fmt.Println("decodeValue(): TAG_BMP_STRING ", "  tag:", n.tag, "   data:", printBytes(n.Data), n.Value)
 		default:
 			err = errors.New("tag is not supported")
 		}
 		if err != nil {
-			fmt.Println("decodeValue(): fail, tag:", n.tag, "  data:", printBytes(n.data), err)
+			fmt.Println("decodeValue(): fail, tag:", n.tag, "  data:", printBytes(n.Data), err)
 			return err
 		}
 		return nil
@@ -435,7 +456,7 @@ func decodeValue(data []byte, n *Node) error {
 		if err != nil {
 			return err
 		}
-		n.nodes = ns
+		n.Nodes = ns
 
 		return nil
 	}
@@ -445,78 +466,78 @@ func decodeValue(data []byte, n *Node) error {
 
 func (n *Node) SetNodes(ns []*Node) {
 	n.constructed = true
-	n.nodes = ns
+	n.Nodes = ns
 }
 
 func (n *Node) GetNodes() ([]*Node, error) {
 	if !n.constructed {
 		return nil, ErrNodeIsNotConstructed
 	}
-	return n.nodes, nil
+	return n.Nodes, nil
 }
 
 func (n *Node) SetBool(b bool) {
 	n.constructed = false
-	n.data = boolEncode(b)
+	n.Data = boolEncode(b)
 }
 
 func (n *Node) GetBool() (bool, error) {
 	if n.constructed {
 		return false, ErrNodeIsConstructed
 	}
-	return boolDecode(n.data)
+	return boolDecode(n.Data)
 }
 
 func (n *Node) SetInt(i int64) {
 	n.constructed = false
-	n.data = intEncode(i)
+	n.Data = intEncode(i)
 }
 
 func (n *Node) GetInt() (int64, error) {
 	if n.constructed {
 		return 0, ErrNodeIsConstructed
 	}
-	return intDecode(n.data)
+	return intDecode(n.Data)
 }
 
 func (n *Node) SetUint(u uint64) {
 	n.constructed = false
-	n.data = uintEncode(u)
+	n.Data = uintEncode(u)
 }
 
 func (n *Node) GetUint() (uint64, error) {
 	if n.constructed {
 		return 0, ErrNodeIsConstructed
 	}
-	return uintDecode(n.data)
+	return uintDecode(n.Data)
 }
 
 func (n *Node) SetBytes(bs []byte) {
 	n.constructed = false
-	n.data = bs
+	n.Data = bs
 }
 
 func (n *Node) GetBytes() ([]byte, error) {
 	if n.constructed {
 		return nil, ErrNodeIsConstructed
 	}
-	return n.data, nil
+	return n.Data, nil
 }
 
 func (n *Node) SetString(s string) {
 	n.constructed = false
-	n.data = []byte(s)
+	n.Data = []byte(s)
 }
 
 func (n *Node) GetString() (string, error) {
 	if n.constructed {
 		return "", ErrNodeIsConstructed
 	}
-	if !utf8.Valid(n.data) {
+	if !utf8.Valid(n.Data) {
 		return "", errors.New("invalid utf8 string")
 		//return "", errors.New("data is not utf-8 string")
 	}
-	return string(n.data), nil
+	return string(n.Data), nil
 }
 
 func (n *Node) SetUTCTime(t time.Time) error {
@@ -525,7 +546,7 @@ func (n *Node) SetUTCTime(t time.Time) error {
 		return err
 	}
 	n.constructed = false
-	n.data = data
+	n.Data = data
 	return nil
 }
 
@@ -533,18 +554,18 @@ func (n *Node) GetUTCTime() (time.Time, error) {
 	if n.constructed {
 		return time.Time{}, ErrNodeIsConstructed
 	}
-	return decodeUTCTime(n.data)
+	return decodeUTCTime(n.Data)
 }
 
 func (n *Node) GetOid() (string, error) {
 	if n.constructed {
 		return "", ErrNodeIsConstructed
 	}
-	oids := make([]uint32, len(n.data)+2)
+	oids := make([]uint32, len(n.Data)+2)
 	//the first byte using: first_arc* 40+second_arc
 	//the later , when highest bit is 1, will add to next to calc
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/bb540809(v=vs.85).aspx
-	f := uint32(n.data[0])
+	f := uint32(n.Data[0])
 	if f < 80 {
 		oids[0] = f / 40
 		oids[1] = f % 40
@@ -553,8 +574,8 @@ func (n *Node) GetOid() (string, error) {
 		oids[1] = f - 80
 	}
 	var tmp uint32
-	for i := 2; i <= len(n.data); i++ {
-		f = uint32(n.data[i-1])
+	for i := 2; i <= len(n.Data); i++ {
+		f = uint32(n.Data[i-1])
 		//	fmt.Printf("f:0x%x\r\n", f)
 		if f >= 0x80 {
 			//		fmt.Printf("tmp<<8:0x%x +   (f&0x7f)0x%x\r\n", tmp<<8, (f & 0x7f))
@@ -586,5 +607,5 @@ func (n *Node) GetEnumerated() (int64, error) {
 }
 
 func (n *Node) GetGeneralizedTime() (time.Time, error) {
-	return parseGeneralizedTime(n.data)
+	return parseGeneralizedTime(n.Data)
 }

@@ -25,7 +25,7 @@ func nodeToJson(n *Node, buf *bytes.Buffer, indent int) (err error) {
 			return err
 		}
 		fmt.Println(jsonKey, jsonValue)
-		//s = hex.EncodeToString(n.data)
+		//s = hex.EncodeToString(n.Data)
 		buf.WriteString(`{"` + jsonKey + `":"` + jsonValue + `"},`)
 
 	} else {
@@ -34,7 +34,7 @@ func nodeToJson(n *Node, buf *bytes.Buffer, indent int) (err error) {
 		} else {
 			buf.WriteString(`[`)
 		}
-		for _, child := range n.nodes {
+		for _, child := range n.Nodes {
 			if err = nodeToJson(child, buf, indent+1); err != nil {
 				return err
 			}
@@ -71,11 +71,11 @@ func nodeToString(n *Node, buf *bytes.Buffer, indent int) error {
 
 		buf.WriteByte(' ')
 
-		s, err = valueToString(n.tag, n.value)
+		s, err = valueToString(n.tag, n.Value)
 		if err != nil {
 			return err
 		}
-		//s = hex.EncodeToString(n.data)
+		//s = hex.EncodeToString(n.Data)
 		if _, err = buf.WriteString(s); err != nil {
 			return err
 		}
@@ -86,7 +86,7 @@ func nodeToString(n *Node, buf *bytes.Buffer, indent int) error {
 
 		buf.WriteString(" {\n")
 
-		for _, child := range n.nodes {
+		for _, child := range n.Nodes {
 			if err = nodeToString(child, buf, indent+1); err != nil {
 				return err
 			}

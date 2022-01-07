@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/cpusoft/asn1/der"
 	"github.com/cpusoft/goutil/fileutil"
@@ -78,22 +77,94 @@ func derHex() error {
 	s = jsonutil.MarshalJson(n)
 	fmt.Println("Json:\n" + s)
 
-	s, err = der.ConvertToString(n)
-	if err != nil {
-		return err
-	}
+	n, _ = changeNode(n)
+	s = jsonutil.MarshalJson(n)
+	fmt.Println("changeNode Json:\n" + s)
+	/*
+	   {
+	       "nodes": [
+	           {
+	               "nodes": [
+	                   {
+	                       "nodes": [
+	                           {
+	                               "nodes": [
+	                                   {
+	                                       "nodes": [
+	                                           {
+	                                               "value": "Ag=="
+	                                           },
+	                                           {
+	                                               "nodes": [
+	                                                   {
+	                                                       "value": "ACABBnwgjA=="
+	                                                   }
+	                                               ]
+	                                           }
+	                                       ]
+	                                   }
+	                               ]
+	                           }
+	                       ]
+	                   }
+	               ]
+	           },
+	           {
+	               "nodes": [
+	                   {
+	                       "value": "2.16.840.1.101.3.4.2.1"
+	                   }
+	               ]
+	           },
+	           {
+	               "nodes": [
+	                   {
+	                       "nodes": [
+	                           {
+	                               "value": "b42_ipv6_loa.png"
+	                           },
+	                           {
+	                               "value": "lRbdZL58FyW5/KEXEg5Y6NhCpSBoczmbPd/8kcS2rPA="
+	                           }
+	                       ]
+	                   },
+	                   {
+	                       "nodes": [
+	                           {
+	                               "value": "b42_service_definition.json"
+	                           },
+	                           {
+	                               "value": "CuE5RyIAXNkvTGqgJNXWs+LmfWKfEXINlHimM6EXocc="
+	                           }
+	                       ]
+	                   }
+	               ]
+	           }
+	       ]
+	   }
+	*/
+	/*
+		checkList := CheckList{}
+		err = jsonutil.UnmarshalJson(s, &checkList)
+		fmt.Println(checkList, err)
 
-	fmt.Println(s)
-	s = strings.TrimSpace(s)
-	s0 := strings.Replace(s, "],],],]", "]]]]", -1)
-	s1 := strings.Replace(s0, "],],]", "]]]", -1)
-	s2 := strings.Replace(s1, "],]", "]]", -1)
-	fmt.Println("s2:\n" + s2)
-	s3 := strings.Replace(s2, `"},[`, `"}],[`, -1)
-	fmt.Println("s3:\n" + s3)
-	checkList := CheckList{}
-	err = jsonutil.UnmarshalJson(s3, &checkList)
-	fmt.Println(checkList, err)
+			s, err = der.ConvertToString(n)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(s)
+			s = strings.TrimSpace(s)
+			s0 := strings.Replace(s, "],],],]", "]]]]", -1)
+			s1 := strings.Replace(s0, "],],]", "]]]", -1)
+			s2 := strings.Replace(s1, "],]", "]]", -1)
+			fmt.Println("s2:\n" + s2)
+			s3 := strings.Replace(s2, `"},[`, `"}],[`, -1)
+			fmt.Println("s3:\n" + s3)
+			checkList := CheckList{}
+			err = jsonutil.UnmarshalJson(s3, &checkList)
+			fmt.Println(checkList, err)
+	*/
 	/*
 		checklist
 		[
@@ -418,21 +489,61 @@ func printBytes(data []byte) (ret string) {
 }
 
 type CheckList struct {
-	IPHolder       [][][][]IPHolder
-	Oid            []string `json:"tagOid"`
-	CheckListBlock []CheckListBlock
+	Node1s []Node1 `json:"nodes"`
 }
 
-type IPHolder struct {
-	IpFamliyStr string   `json:"tagOctetString"`
-	IpAddress   []string `json:"tagBitString"`
+type Node1 struct {
+	Node2s         []Node2          `json:"nodes"`
+	Oid            Oid              `json:"-"`
+	CheckListBlock []CheckListBlock `json:"-"`
+}
+type Node2 struct {
+	Node3s []Node3 `json:"nodes"`
+}
+type Node3 struct {
+	Node4s []Node4 `json:"nodes"`
+}
+type Node4 struct {
+	Node5s []Node5 `json:"nodes"`
+}
+type Node5 struct {
+	IpFamliyBytes []byte `json:"value"`
+	Node6s        Node6  `json:"nodes"`
+}
+type Node6 struct {
+	IpAddresses []byte `json:"value"` //[]IpAddress
 }
 
-type CheckListBlock struct {
-	FileList []FileList
+type IpAddress struct {
+	IpAddressPrefix []byte `json:"value"`
+}
+type Oid struct {
+	Oid string `json:"value"`
 }
 
-type FileList struct {
-	FileName string `json:"tagIa5String"`
-	Hash     string `json:"tagOctetString"`
+type NameAndHash struct {
+	Name string `json:"value"`
+}
+
+func changeNode(n *der.Node) (newNode *der.Node, err error) {
+	ipNode := n.Nodes[0].Nodes[0].Nodes[0].Nodes[0]
+	ipFamliy := ipNode.Nodes[0]
+	ipAddress := ipNode.Nodes[1].Nodes[0]
+	oidNode := n.Nodes[1].Nodes[0]
+	fileHashNode := n.Nodes[2]
+	fmt.Println(jsonutil.MarshalJson(ipFamliy))
+	fmt.Println(jsonutil.MarshalJson(ipAddress))
+
+	fmt.Println(jsonutil.MarshalJson(oidNode))
+	for _, child := range fileHashNode.Nodes {
+		fmt.Println(jsonutil.MarshalJson(child.Nodes[0]))
+		fmt.Println(jsonutil.MarshalJson(child.Nodes[1]))
+		nameAndHashStr := jsonutil.MarshalJson(child.Nodes)
+		fmt.Println(nameAndHashStr)
+		nameAndHash := make([]NameAndHash, 0)
+		err = jsonutil.UnmarshalJson(nameAndHashStr, &nameAndHash)
+		fmt.Println(nameAndHash, err)
+	}
+
+	return n, nil
 }
