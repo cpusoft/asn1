@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/cpusoft/asn1/der"
 	"github.com/cpusoft/goutil/fileutil"
+	"github.com/cpusoft/goutil/jsonutil"
 )
 
 func main() {
@@ -54,8 +56,11 @@ func derHex() error {
 01-A3-08-0C-06-31-32-33 34-35-36-A4-13-17-11-31
 35-31-32-31-37-31-37-34 38-34-34-2B-30-33-30-30`
 
+	// checklist .sig
 	hexDump = `30 81 9c 30 14 a1 12 30 10 30 0e 04 01 02 30 09 03 07 00 20 01 06 7c 20 8c 30 0b 06 09 60 86 48 01 65 03 04 02 01 30 77 30 34 16 10 62 34 32 5f 69 70 76 36 5f 6c 6f 61 2e 70 6e 67 04 20 95 16 dd 64 be 7c 17 25 b9 fc a1 17 12 0e 58 e8 d8 42 a5 20 68 73 39 9b 3d df fc 91 c4 b6 ac f0 30 3f 16 1b 62 34 32 5f 73 65 72 76 69 63 65 5f 64 65 66 69 6e 69 74 69 6f 6e 2e 6a 73 6f 6e 04 20 0a e1 39 47 22 00 5c d9 2f 4c 6a a0 24 d5 d6 b3 e2 e6 7d 62 9f 11 72 0d 94 78 a6 33 a1 17 a1 c7`
 
+	// mft
+	//hexDump = `30 82 01 33 02 14 01 0d 0c 9f 43 28 57 6d 51 cc 73 c0 42 cf c1 73 e8 5c ae a2 18 0f 32 30 32 30 30 38 31 33 31 35 30 37 33 34 5a 18 0f 32 30 32 30 30 38 31 36 31 37 30 30 30 30 5a 06 09 60 86 48 01 65 03 04 02 01 30 81 ed 30 4d 16 28 34 31 31 30 35 31 64 61 2d 63 30 32 65 2d 33 39 32 34 2d 62 35 31 32 2d 38 62 66 35 36 63 39 30  36 66 36 38 2e 72 6f 61 03 21 00 4c ed d8 ef 52 25 65 fc d1 2b 94 34 1a 79 ee 50 22 a7 dd 39 c7 9a 37 ff 97 f5 75 ce b3 05 21 68 30 4d 16 28 37 62 61 35 39 33 61 66 2d 36 66 39 35 2d 33 37 30 66 2d 38 31 63 38 2d 34 62 35 62 61 64 36 61 30 34 36 34 2e 72 6f 61 03 21 00 ea 36 17 ae 1a a7 80 38 d7 5a  21 20 19 18 0e 66 71 ee d8 18 ce c5 33 4b e5 87 a4 f0 76 b5 27 d7 30 4d 16 28 64 65 35 31 66 64 37 64 2d 33 37 64 37 2d 34 64 61 36 2d 38 64 65 38 2d 37 64 33 34 36 65 30 30 30 36 61 61 2e 63 72 6c 03 21 00 48 78 9d e1 96 e6 10 d7 9b 74 69 c1 1f 8b d1 fb 64 5c 42 46 c6 99 fd 1d 31 14 41 46 05 b1 06 34`
 	s := onlyHex(hexDump)
 
 	data1, err := hex.DecodeString(s)
@@ -70,41 +75,112 @@ func derHex() error {
 		return err
 	}
 
+	s = jsonutil.MarshalJson(n)
+	fmt.Println("Json:\n" + s)
+
 	s, err = der.ConvertToString(n)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println(s)
+	s = strings.TrimSpace(s)
+	s0 := strings.Replace(s, "],],],]", "]]]]", -1)
+	s1 := strings.Replace(s0, "],],]", "]]]", -1)
+	s2 := strings.Replace(s1, "],]", "]]", -1)
+	fmt.Println("s2:\n" + s2)
+	s3 := strings.Replace(s2, `"},[`, `"}],[`, -1)
+	fmt.Println("s3:\n" + s3)
+	checkList := CheckList{}
+	err = jsonutil.UnmarshalJson(s3, &checkList)
+	fmt.Println(checkList, err)
 	/*
+		checklist
+		[
+			[
+				[
+					[
+										[
+											{
+												"tagOctetString": "02"
+											},
+											[
+												{
+													"tagBitString": "00 20 01 06 7c 20 8c"
+												}
+											]
+										]
+									]
+								]
+							],
+							[
+								{
+									"tagOid": "2.16.840.1.101.3.4.2.1"
+								}
+							],
+							[
+								[
+									{
+										"tagIa5String": "b42_ipv6_loa.png"
+									},
+									{
+										"tagOctetString": "95 16 dd 64 be 7c 17 25 b9 fc a1 17 12 0e 58 e8 d8 42 a5 20 68 73 39 9b 3d df fc 91 c4 b6 ac f0"
+									}
+								],
+								[
+									{
+										"tagIa5String": "b42_service_definition.json"
+									},
+									{
+										"tagOctetString": "0a e1 39 47 22 00 5c d9 2f 4c 6a a0 24 d5 d6 b3 e2 e6 7d 62 9f 11 72 0d 94 78 a6 33 a1 17 a1 c7"
+									}
+								]
+							]
+						]
 
-	   UN(16): {
-	           UN(16): {
-	                   CS(1): {
-	                           UN(16): {
-	                                   UN(16): {
-	                                           UN(4): {bytes:02 }
-	                                           UN(16): {
-	                                                   UN(3): {bytes:00 20 01 06 7c 20 8c }
-	                                           }
-	                                   }
-	                           }
-	                   }
-	           }
-	           UN(16): {
-	                   UN(6): {string:2.16.840.1.101.3.4.2.1}
-	           }
-	           UN(16): {
-	                   UN(16): {
-	                           UN(22): {string:b42_ipv6_loa.png}
-	                           UN(4): {bytes:95 16 dd 64 be 7c 17 25 b9 fc a1 17 12 0e 58 e8 d8 42 a5 20 68 73 39 9b 3d df fc 91 c4 b6 ac f0 }
-	                   }
-	                   UN(16): {
-	                           UN(22): {string:b42_service_definition.json}
-	                           UN(4): {bytes:0a e1 39 47 22 00 5c d9 2f 4c 6a a0 24 d5 d6 b3 e2 e6 7d 62 9f 11 72 0d 94 78 a6 33 a1 17 a1 c7 }
-	                   }
-	           }
-	   }
+					mft
+					[
+					{
+						"tagInteger": "10d0c9f4328576d51cc73c042cfc173e85caea2"
+					},
+					{
+						"tagGeneralizedTime": "2020-08-13 23:07:34 UTC"
+					},
+					{
+						"tagGeneralizedTime": "2020-08-17 01:00:00 UTC"
+					},
+					{
+						"tagOid": "2.16.840.1.101.3.4.2.1"
+					},
+					[
+						[
+							{
+								"tagIa5String": "411051da-c02e-3924-b512-8bf56c906f68.roa"
+							},
+							{
+								"tagBitString": "00 4c ed d8 ef 52 25 65 fc d1 2b 94 34 1a 79 ee 50 22 a7 dd 39 c7 9a 37 ff 97 f5 75 ce b3 05 21 68"
+							}
+						],
+						[
+							{
+								"tagIa5String": "7ba593af-6f95-370f-81c8-4b5bad6a0464.roa"
+							},
+							{
+								"tagBitString": "00 ea 36 17 ae 1a a7 80 38 d7 5a 21 20 19 18 0e 66 71 ee d8 18 ce c5 33 4b e5 87 a4 f0 76 b5 27 d7"
+							}
+						],
+						[
+							{
+								"tagIa5String": "de51fd7d-37d7-4da6-8de8-7d346e0006aa.crl"
+							},
+							{
+								"tagBitString": "00 48 78 9d e1 96 e6 10 d7 9b 74 69 c1 1f 8b d1 fb 64 5c 42 46 c6 99 fd  1d 31 14 41 46 05 b1 06 34"
+							}
+						]
+					]
+				]
+
+
 	*/
 
 	data2, err := der.EncodeNode(nil, n)
@@ -339,4 +415,24 @@ func printBytes(data []byte) (ret string) {
 		ret += fmt.Sprintf("%02x ", b)
 	}
 	return ret
+}
+
+type CheckList struct {
+	IPHolder       [][][][]IPHolder
+	Oid            []string `json:"tagOid"`
+	CheckListBlock []CheckListBlock
+}
+
+type IPHolder struct {
+	IpFamliyStr string   `json:"tagOctetString"`
+	IpAddress   []string `json:"tagBitString"`
+}
+
+type CheckListBlock struct {
+	FileList []FileList
+}
+
+type FileList struct {
+	FileName string `json:"tagIa5String"`
+	Hash     string `json:"tagOctetString"`
 }

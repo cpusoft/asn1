@@ -167,7 +167,7 @@ func (n *Node) toJsonKeyValue() (jsonKey, jsonValue string, err error) {
 		fallthrough
 	case TAG_GENERALIZED_TIME:
 		if t, ok := value.(time.Time); ok {
-			jsonValue = t.Local().Format("2006-01-02 15:04:05 MST")
+			jsonValue = t.Local().Format("2006-01-02 15:04:05 UTC")
 		} else {
 			err = errors.New("data is not time")
 		}
@@ -259,7 +259,7 @@ func valueToString(tag int, value interface{}) (string, error) {
 	case TAG_GENERALIZED_TIME:
 		k = "time"
 		if t, ok := value.(time.Time); ok {
-			v = t.Local().Format("2006-01-02 15:04:05 MST")
+			v = t.Local().Format("2006-01-02 15:04:05 UTC")
 		} else {
 			err = errors.New("data is not time")
 		}
@@ -586,5 +586,5 @@ func (n *Node) GetEnumerated() (int64, error) {
 }
 
 func (n *Node) GetGeneralizedTime() (time.Time, error) {
-	return n.GetUTCTime()
+	return parseGeneralizedTime(n.data)
 }

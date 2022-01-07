@@ -266,3 +266,26 @@ func yearCollapse(year int) int {
 func inInterval(a int, min, max int) bool {
 	return (min <= a) && (a < max)
 }
+
+// Generalized Long Year, 4 nums
+func parseGeneralizedTime(data []byte) (ret time.Time, err error) {
+	if len(data) < 15 {
+		return time.Now(), errors.New("parseGeneralizedTime fail")
+	}
+	fmt.Println(printBytes(data))
+
+	year := string(data[0:4])
+	month := string(data[4:6])
+	day := string(data[6:8])
+	hour := string(data[8:10])
+	minute := string(data[10:12])
+	second := string(data[12:14])
+	z := string(data[14])
+	tm := year + "-" + month + "-" + day + " " + hour + ":" + minute + ":" + second + z
+	ret, err = time.Parse("2006-01-02 15:04:05Z", tm)
+	if err != nil {
+		fmt.Println("parseGeneralizedTime fail:", err)
+		return time.Now(), errors.New("parseGeneralizedTime fail")
+	}
+	return ret, nil
+}

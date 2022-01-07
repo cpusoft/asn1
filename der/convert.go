@@ -9,14 +9,14 @@ import (
 func ConvertToString(n *Node) (string, error) {
 	var buf bytes.Buffer
 	//err := nodeToString(n, &buf, 0)
-	err := nodeToJson(n, &buf)
+	err := nodeToJson(n, &buf, 0)
 	if err != nil {
 		return "", err
 	}
 	str := strings.Replace(buf.String(), "},]", "}]", -1)
 	return str, nil
 }
-func nodeToJson(n *Node, buf *bytes.Buffer) (err error) {
+func nodeToJson(n *Node, buf *bytes.Buffer, indent int) (err error) {
 
 	if !n.constructed {
 
@@ -26,21 +26,24 @@ func nodeToJson(n *Node, buf *bytes.Buffer) (err error) {
 		}
 		fmt.Println(jsonKey, jsonValue)
 		//s = hex.EncodeToString(n.data)
-		if _, err = buf.WriteString(`{"` + jsonKey + `":"` + jsonValue + `"},`); err != nil {
-			return err
-		}
+		buf.WriteString(`{"` + jsonKey + `":"` + jsonValue + `"},`)
 
 	} else {
-
-		buf.WriteString("[")
-
+		if indent == 0 {
+			buf.WriteString(`{"sequence":[`)
+		} else {
+			buf.WriteString(`[`)
+		}
 		for _, child := range n.nodes {
-			if err = nodeToJson(child, buf); err != nil {
+			if err = nodeToJson(child, buf, indent+1); err != nil {
 				return err
 			}
 		}
-
-		buf.WriteString("]")
+		if indent == 0 {
+			buf.WriteString(`]}`)
+		} else {
+			buf.WriteString(`],`)
+		}
 	}
 
 	return nil
